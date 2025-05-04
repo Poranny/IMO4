@@ -1,13 +1,14 @@
 import tsplib95
 import random
 import math
+from typing import List, Sequence
 
+from local_search import _d
 
 def load_coords(tsp_file):
     problem = tsplib95.load(tsp_file)
     coords = [coord for _, coord in sorted(problem.node_coords.items())]
     return coords
-
 
 def compute_distance_matrix(coords):
     n = len(coords)
@@ -21,40 +22,22 @@ def compute_distance_matrix(coords):
             dm[j][i] = dist
     return dm
 
-
 def generate_random_solution(coords):
-
     n = len(coords)
     if n < 2:
         return [], []
 
     indices = list(range(n))
     random.shuffle(indices)
+
     half = n // 2
+
     cycle1 = indices[:half]
     cycle2 = indices[half:]
 
     return cycle1, cycle2
 
-
-def generate_random_two_cycles(coords):
-    n = len(coords)
-    indices = list(range(n))
-    random.shuffle(indices)
-    half = n // 2
-    return indices[:half], indices[half:]
-
-
-def cycle_cost(distance_matrix, cycle):
-    cost = 0.0
-    for i in range(len(cycle)):
-        j = (i + 1) % len(cycle)
-        cost += distance_matrix[cycle[i]][cycle[j]]
-    return cost
-
-
-def generate_weighted_regret(coords, alpha=0.75):
-    distance_matrix = compute_distance_matrix(coords)
+def generate_weighted_regret(coords, distance_matrix, alpha=0.75):
     n = len(coords)
     if n < 2:
         return [], []
@@ -117,3 +100,34 @@ def generate_weighted_regret(coords, alpha=0.75):
         turn = 1 - turn
 
     return cycle1, cycle2
+
+def weighted_regret_insertion_balanced(
+    cycle1: List[int],
+    cycle2: List[int],
+    removed: List[int],
+    dist: Sequence[Sequence[float]],
+    alpha: float = 0.75,
+):
+    def ins_cost(cyc: List[int], i: int, v: int) -> float:
+        a, b = cyc[i], cyc[(i + 1) % len(cyc)]
+        return _d(a, v, dist) + _d(v, b, dist) - _d(a, b, dist)
+
+    while removed:
+        len_diff = len(cycle1) - len(cycle2)
+        shorter = cycle2 if len_diff > 0 else cycle1
+
+        best_vertex, best_pos, best_regret = None, None, -float("inf")
+
+        for v in removed:
+            m = len(shorter)
+            costs = [(ins_cost(shorter, i, v), i + 1) for i in range(m)]
+            costs.sort(key=lambda x: x[0])
+            best_inc, best_pos_tmp = costs[0]
+            second_inc = costs[1][0] if m > 1 else best_inc
+            regret = alpha * (second_inc - best_inc) - (1 - alpha) * best_inc
+
+            if regret > best_regret:
+                best_vertex, best_pos, best_regret = v, best_pos_tmp, regret
+
+        shorter.insert(best_pos, best_vertex)
+        removed.remove(best_vertex)
