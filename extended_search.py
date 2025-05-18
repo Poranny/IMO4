@@ -25,7 +25,7 @@ def msls(coords, dist, num_iterations: int = 200):
     for _ in range(num_iterations):
         c1, c2 = generate_random_solution(coords)
         ls_c1, ls_c2 = local_search_solution(c1, c2, dist)
-        cost = total_cost(ls_c1, ls_c2, dist) # maybe this is bad
+        cost = total_cost(ls_c1, ls_c2, dist)
         if cost < best_cost:
             best_cost = cost
             best_sol = (ls_c1, ls_c2)
